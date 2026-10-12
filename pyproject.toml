@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nats-transport-wrapper"
+version = "0.1.0"
+description = "Small synchronous Core NATS byte transport with bounded waits and ordered callbacks"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Jim Lewis"}]
+requires-python = ">=3.10"
+dependencies = ["nats-py>=2.15,<3"]
+
+[tool.setuptools]
+py-modules = ["nats_transport"]
