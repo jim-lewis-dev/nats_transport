@@ -22,17 +22,20 @@ Receiving a command does not execute it automatically.
 
 ## Install and try it
 
-Requires Python 3.10+ and a running NATS server. The server runs independently
+Requires Python 3.10+, Git, and a running NATS server. The server runs independently
 and is not included in this Python project.
 
 ```bash
+git clone https://github.com/jim-lewis-dev/nats_transport.git
+cd nats_transport
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install .
 nats-server -a 127.0.0.1 -p 4222
 ```
 
-Leave the server running. In another terminal, activate the environment and
+Skip the `nats-server` command if a local broker is already running. Otherwise,
+leave the server running. In another terminal, activate the environment and
 start the listener before sending:
 
 ```bash
@@ -46,9 +49,10 @@ python examples/pubsub.py send computers.desktop.commands '{"command":"status"}'
 python examples/pubsub.py send computers.desktop.commands 'hello'
 ```
 
-For two computers, run the server on one reachable computer and use its LAN
-address in `--server nats://192.168.0.107:4222` on both clients. Bind the server
-to its LAN interface and allow TCP port 4222 through the relevant firewall.
+For two computers, connect both clients to the same reachable broker. For
+example, add `--server nats://broker.example.net:4222` to both commands,
+replacing the example hostname with your broker's hostname or IP address. Bind
+the server to its LAN interface and allow TCP port 4222 through the relevant firewall.
 Use an authenticated server; use TLS or a trusted private network when traffic
 can be observed. Only run command handlers for peers you authorize. The wrapper
 handles transport; authorization and command validation belong to the server
@@ -61,7 +65,7 @@ import json
 from nats_transport import NatsTransport, NatsTransportError, NatsTransportTimeout
 
 transport = NatsTransport(
-    "nats://192.168.0.107:4222",
+    "nats://127.0.0.1:4222",
     connect_timeout=5,
     operation_timeout=5,
     close_timeout=5,
@@ -115,9 +119,9 @@ configured default. Expiry raises `NatsTransportTimeout`, a subclass of
 traffic already sent; this wrapper does not automatically retry timed-out calls.
 Initial connection failure can add a brief cleanup interval.
 
-Agent Messenger's request timeout is a separate allowance for publication and
-waiting for the answer. The updated Agent Two and HINT integrations pass the
-remaining allowance into publication. Their existing envelope still carries a
+[Agent Messenger](https://github.com/jim-lewis-dev/agent_messenger)'s request
+timeout is a separate allowance for publication and waiting for the answer.
+Messenger passes the remaining allowance into publication. Its envelope carries a
 duration; each receiver uses its own monotonic clock. This does not require
 synchronized clocks, and it is not a shared end-to-end timestamp. Transit time
 is not subtracted from the receiver's duration.
@@ -179,26 +183,24 @@ TLS, and subject permissions separately. See the official
 [NATS documentation](https://docs.nats.io/) and
 [nats-py documentation](https://nats-io.github.io/nats.py/).
 
-## Keep consumers current
+## Install in other projects
 
-The coordinated update supplies identical transport and Agent Messenger copies
-to Agent Two and HINT. Agent Messenger remains a separate project and is not
-bundled into this package.
+Use a package dependency in each application's Python environment. Direct
+transport consumers depend on `nats-transport-wrapper`. Applications using
+[Agent Messenger](https://github.com/jim-lewis-dev/agent_messenger) install it;
+Messenger installs its pinned NATS transport dependency automatically.
 
-For future transport-only updates, stop the consumers, review their Git changes,
-copy the canonical module, and run their tests. For these example project paths:
+Pin a reviewed Git commit or release in the consuming project's dependencies.
+Adopt updates deliberately and run that project's compatibility tests. A Git
+push updates the repository; it does not update installed applications or other
+computers. The broker is a separate service and is not installed by this package.
 
-```bash
-cp ~/projects/nats_transport/nats_transport.py ~/projects/agent_two/nats_transport.py
-cp ~/projects/nats_transport/nats_transport.py ~/projects/hint/nats_transport.py
-```
+Keep one installed implementation of each library. A project-local
+`nats_transport.py` shadows the installed module, so copying this source file
+into consumers defeats the package dependency. If the transport contract changes,
+coordinate the dependency update with its callers.
 
-If a future release changes the transport contract, update Messenger and other callers in the same
-release. Prefer a pinned package dependency once the projects no longer carry
-local copies; a local file shadows an installed package with the same import name.
-This standalone repository contains no update, export, or consumer-sync scripts.
-
-## Tests and publishing
+## Tests and development
 
 ```bash
 python -m unittest -v
@@ -213,16 +215,10 @@ a server skip when none is installed; CI requires the server. The certificate
 test also needs `openssl`. The package supports `nats-py>=2.15,<3`; the supplied
 CI workflow tests 2.15 and 2.16 on Python 3.10, 3.12, and 3.14.
 
-This directory can be the root of its own GitHub repository; it does not require
-moving the agent repositories. The runtime remains one file, with docs,
-examples, tests, and packaging around it. To retain history from an existing
-repository, extract the relevant file's history in a separate clone rather
-than rewriting the original project.
-
-Before a public release, set the repository owner/URL and run CI on the target
-platforms. The provisional
-distribution name `nats-transport-wrapper` has not been checked for availability
-on PyPI. No public repository or package has been published by this update.
+The distribution name is `nats-transport-wrapper`; the Python import is
+`nats_transport`. Source and issue tracking are in
+[jim-lewis-dev/nats_transport](https://github.com/jim-lewis-dev/nats_transport).
+See [design and behavior notes](REVIEW.md) for the transport's boundaries.
 
 The code is available under the MIT license. Copyright (c) 2026 Jim Lewis.
 See `LICENSE` for the complete terms.
